@@ -20,6 +20,7 @@ DIRECTORIES=""
 DIRECTORIES_INV=""
 VERBOSE=0
 PRUNE=0
+UPDATE=0
 
 ############################################################
 # Help                                                     #
@@ -33,9 +34,9 @@ manage a tree of docker-compose :
 
 ${cmd}
 ├── stack1
-│   ├── docker-compose.yml
-│   ├── .env
-│   └── OK
+│   ├── docker-compose.yml
+│   ├── .env
+│   └── OK
 └── stack2
     └── docker-compose.yml
 
@@ -47,10 +48,14 @@ ACTION
 #-d## Down : stop docker compose on each file
 #-r## Restart : stop and run docker compose on each file
 #-p## Prune : remove unsed images, volumes and networks
+#-i## Install/Update : check if new versions of docker-compose and dcr exist (autoupdate for docker-compose if force)
 OPTION
-#-f## Force : do it without checking of "OK" file
+#-f## Force : no check of "OK" file (udr), auto install/upgrade (i)
 #-c <file># Conf file : get list of folder from file instead of generate it
 #-v## Verbose : show more information
+
+#${RED}/!\ use force only if you are sure what you do${NC}
+#use this script at your own risk
 
 some usefull commands :
 
@@ -81,30 +86,103 @@ Prune(){
 	verbose "# Prune"
 	verbose "  - Prune unused images"
 	docker image prune -fa
-	verbose "  - Prune unused volumes"	
+	verbose "  - Prune unused volumes"
 	docker volume prune -f
-	verbose "  - Prune unused networks\n"	
+	verbose "  - Prune unused networks\n"
 	docker network prune -f
 }
 
-# Run_for_item <action (Up|Down)> <force(1|0)> <directory>
+DC_Update(){
+	echo -e "${GREEN}####### Install/Update docker-compose  #######${NC}"
+	verbose "# docker-compose"
+	DC_CURR_VERSION="not installed"
+
+	if [[ -r /usr/libexec/docker/cli-plugins/docker-compose ]]; then
+		DC_CURR_VERSION="$( docker compose version | sed -r "s/^.*(v[0-9]\.[0-9]\.[0-9]).*/\1/" )"
+	fi
+	verbose "  - current version : ${DC_CURR_VERSION}"
+
+        DC_LAST_VERSION="$( curl -s https://api.github.com/repos/docker/compose/releases/latest | grep "tag_name" | sed -r "s/^.*(v[0-9].[0-9].[0-9]).*/\1/" )"
+	verbose "  - last version : ${DC_LAST_VERSION}"
+
+	if [[ "${DC_CURR_VERSION}" == "${DC_LAST_VERSION}" ]]; then
+		echo "docker-compose already up to date"
+	else
+		echo "docker-compose update avaiable : ${DC_CURR_VERSION} > ${DC_LAST_VERSION}"
+
+		verbose "  - get information from github"
+		local github_content="$( curl -s https://api.github.com/repos/docker/compose/releases/latest )"
+		local filename="docker-compose-$(uname -s)-$(uname -m)"
+		local files="$( echo "${github_content}" | grep -Ei "browser_download_url.*$filename" | cut -d"\"" -f4 )"
+
+		if [[ "${FORCE}" -eq 1 ]]; then
+			echo "force==1 > auto-update"
+
+			verbose "  - change directory to /tmp/"
+			command pushd "/tmp/" > /dev/null
+
+			for f in $files; do
+				verbose "  - download ${f}"
+				curl -L -o "/tmp/$(basename ${f})" "${f}"
+				[[ "${f}" == *".sha256"* ]] && f_sha="$(basename ${f})" || f_dc="$(basename ${f})"
+			done
+
+			verbose "  - checksum of ${f_dc} with ${f_sha}"
+
+			if ! $( sha256sum -c "${f_sha}"  > /dev/null ) ; then
+				echo -e "${RED}${f_dc} with ${f_sha} : checksum failed ${NC}"
+				exit 1
+			fi
+
+			verbose "  - copy ${filename}"
+			cp ${f_dc} /usr/libexec/docker/cli-plugins/docker-compose
+
+			command popd > /dev/null
+			verbose "  - return to previous directory $(pwd)"
+
+			chmod +x /usr/libexec/docker/cli-plugins/docker-compose
+			verbose "  - chmod for docker-compose"
+			echo -e "${GREEN}####### docker-compose up to date ! #######${NC}"
+		else
+			echo
+			echo "##################################################################################################"
+			echo -e "${ORANGE}docker-compose new version available : ${NC}${DC_CURR_VERSION} > ${GREEN}${DC_LAST_VERSION}${NC}"
+			echo
+			for f in $files; do
+				echo "wget \"${f}\" -O \"/tmp/$(basename ${f})\""
+				[[ "${f}" == *".sha256"* ]] && f_sha="${f}" || f_dc="${f}"
+			done
+			echo
+			echo "sha256sum -c \"${f_sha}\""
+			echo
+			echo "mv ${f_dc} /usr/libexec/docker/cli-plugins/docker-compose"
+			echo
+			echo "chmod +x /usr/libexec/docker/cli-plugins/docker-compose"
+			echo ""
+			echo -e "${GREEN}####### Exit to manage it #######${NC}"
+			echo
+			exit 0
+		fi
+	fi
+}
+
+# Run_for_item <action (Up|Down)> <directory>
 Run_for_item(){
 	local action=${1}
-	local force=${2}
-	local directory=${3}
-	verbose "\n    - Action $action (force=$force) on $directory"
+	local directory=${2}
+	verbose "\n    - Action $action (force=$FORCE) on $directory"
 
 	if [[ -r "${directory}/docker-compose.yml" ]]; then
 
 		verbose "      + change directory to ${directory}"
 		command pushd "${directory}" > /dev/null
 
-		if [[ "${force}" -eq 1 || -e "OK"  ]]; then
+		if [[ "${FORCE}" -eq 1 || -e "OK"  ]]; then
 			verbose "      + Force==1 or file OK found"
 			verbose "      + Do action $action"
 			${action} "${directory}"
 		else
-			verbose "      + Force($force)==0 or file OK not found"
+			verbose "      + Force($FORCE)==0 or file OK not found"
 			verbose "      + Skip action $action"
 			echo -e "${GRAY}####### ${directory} > ${1} [SKIP] (OK && force == false) #######${NC}"
 		fi
@@ -117,25 +195,23 @@ Run_for_item(){
 	fi
 }
 
-# Run_for_all <action (Up|Down|Restart)> <force(1|0)>
+# Run_for_all <action (Up|Down|Restart)>
 Run_for_all(){
 	local action=${1}
-	local force=${2}
-	local directories=${3}
 
-	verbose "# Action $action (force=$force) on each directory of $(Array_to_Str "${DIRECTORIES}")"
+	verbose "# Action $action (force=$FORCE) on each directory of $(Array_to_Str "${DIRECTORIES}")"
 
 	if [[ "Down Restart" == *"$action"* ]]; then
-		verbose "\n  - Action $action[Down] (force=$force) on each directory of $(Array_to_Str "${DIRECTORIES_INV}")"
+		verbose "\n  - Action $action[Down] (force=$FORCE) on each directory of $(Array_to_Str "${DIRECTORIES_INV}")"
 		for dir in $DIRECTORIES_INV; do
-			Run_for_item "Down" "${force}" "${dir}"
+			Run_for_item "Down" "${dir}"
 		done
 	fi
 
 	if [[ "Up Restart" == *"$action"* ]]; then
-		verbose "\n  - Action $action[Up] (force=$force) on each directory of $(Array_to_Str "${DIRECTORIES}")"
+		verbose "\n  - Action $action[Up] (force=$FORCE) on each directory of $(Array_to_Str "${DIRECTORIES}")"
 		for dir in $DIRECTORIES; do
-			Run_for_item "Up" "${force}" "${dir}"
+			Run_for_item "Up" "${dir}"
 		done
 	fi
 }
@@ -153,12 +229,13 @@ Array_to_Str(){
 # Main                                                     #
 ############################################################
 
-while getopts "hudrfc:vp" option; do
+while getopts "hudrifc:vp" option; do
 	case $option in
 		h) Help; exit 0;;
 		u) ACTION="Up";;
 		d) ACTION="Down";;
 		r) ACTION="Restart";;
+		i) UPDATE=1;;
 		f) FORCE=1;;
 		c) FILE="${OPTARG}";;
 		p) PRUNE=1;;
@@ -177,11 +254,18 @@ echo -e "${GREEN}####### START #######${NC}\n"
 verbose "\
 # Command and options
   - ACTION=${ACTION}
+  - PRUNE=${PRUNE}
+  - UPDATE=${UPDATE}
   - FORCE=${FORCE}
   - FILE=${FILE:-"<Empty>"}
-  - PRUNE=${PRUNE}
   - VERBOSE=${VERBOSE}
 "
+
+if [[ -z "${ACTION}" && -z "${PRUNE}" && -z "${UPDATE}" ]]; then
+	echo -e "${RED}missing option ${NC}\n\n"
+	Help
+	exit 1
+fi
 
 verbose "# Directories to manage"
 if [[ -n "${FILE}" && -r  "${FILE}" ]]; then
@@ -202,8 +286,9 @@ verbose "  - DIRECTORIES=$(Array_to_Str "${DIRECTORIES}")"
 verbose "  - DIRECTORIES_INV=$(Array_to_Str "${DIRECTORIES_INV}")\n"
 
 [[ "${PRUNE}" -eq 1 ]] && Prune
+[[ "${UPDATE}" -eq 1 ]] && DC_Update
 
-[[ -n "${ACTION}" ]] && Run_for_all "${ACTION}" "${FORCE}"
+[[ -n "${ACTION}" ]] && Run_for_all "${ACTION}"
 
 echo -e "${GREEN}####### END #######${NC}\n"
 

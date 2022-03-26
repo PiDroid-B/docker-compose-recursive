@@ -2,6 +2,8 @@
 
 State : beta/developpment
 
+**use it at your own risk**
+
 A little script as like as a bulk manager to use with several docker-compose files.
 
 ## Features
@@ -11,6 +13,7 @@ A little script as like as a bulk manager to use with several docker-compose fil
 - Each docker-compose.yml can be managed/unmanaged just with an empty file "OK"
 - External conf file can be used to order the Run and Stop (Stop is inverted)
 - Single command to prune all unused images/volumes/networks
+- installer/updater for docker-compose (read the help before use)
 
 ## Help
 
@@ -37,10 +40,14 @@ ACTION
         -d               Down : stop docker compose on each file
         -r               Restart : stop and run docker compose on each file
         -p               Prune : remove unsed images, volumes and networks
+        -i               Install/Update : check if new versions of docker-compose and dcr exist (autoupdate for docker-compose if force)
 OPTION
-        -f               Force : do it without checking of OK file
+        -f               Force : no check of OK file (udr), auto install/upgrade (i)
         -c <file>        Conf file : get list of folder from file instead of generate it
         -v               Verbose : show more information
+
+        /!\ use force only if you are sure what you do
+        use this script at your own risk
 
 some usefull commands :
 
