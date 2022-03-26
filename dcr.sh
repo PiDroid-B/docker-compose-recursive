@@ -3,10 +3,6 @@
 ############################################################
 # Const                                                    #
 ############################################################
-ACTION=${1:-"up"}
-
-EXPECTED_ACTION=" up down "
-
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 ORANGE='\033[0;33m'
@@ -14,22 +10,16 @@ GRAY='\033[1;30m'
 BLUE='\033[1;34m'
 NC='\033[0m'
 
-# Option defaults
-OPT="value"
-
-# getopts string
-# This string needs to be updated with the single character options (e.g. -f)
-opts="fvo:"
-
 # Gets the command name without path
 cmd="$(basename $0)"
 
-ACTION="Up"
+ACTION=""
 FORCE=0
 FILE=""
 DIRECTORIES=""
 DIRECTORIES_INV=""
 VERBOSE=0
+PRUNE=0
 
 ############################################################
 # Help                                                     #
@@ -52,14 +42,15 @@ ${cmd}
 ${GREEN}Usage : ${cmd} [ACTION] [OPTION]${NC}
 
 ACTION
-#-h# Help : show this help
-#-u# Up : run docker compose on each file (default)
-#-d# Down : stop docker compose on each file
-#-r# Restart : stop and run docker compose on each file
+#-h## Help : show this help
+#-u## Up : run docker compose on each file (default)
+#-d## Down : stop docker compose on each file
+#-r## Restart : stop and run docker compose on each file
+#-p## Prune : remove unsed images, volumes and networks
 OPTION
-#-f# Force : do it without checking of "OK" file
+#-f## Force : do it without checking of "OK" file
 #-c <file># Conf file : get list of folder from file instead of generate it
-#-v# Verbose : show more information
+#-v## Verbose : show more information
 
 some usefull commands :
 
@@ -83,6 +74,17 @@ Up(){
 Down(){
 	echo -e "${ORANGE}####### ${1} > down #######${NC}"
 	docker compose down
+}
+
+Prune(){
+	echo -e "${GREEN}####### Prune unused images/volumes/networks #######${NC}"
+	verbose "# Prune"
+	verbose "  - Prune unused images"
+	docker image prune -fa
+	verbose "  - Prune unused volumes"	
+	docker volume prune -f
+	verbose "  - Prune unused networks\n"	
+	docker network prune -f
 }
 
 # Run_for_item <action (Up|Down)> <force(1|0)> <directory>
@@ -151,7 +153,7 @@ Array_to_Str(){
 # Main                                                     #
 ############################################################
 
-while getopts "hudrfc:v" option; do
+while getopts "hudrfc:vp" option; do
 	case $option in
 		h) Help; exit 0;;
 		u) ACTION="Up";;
@@ -159,6 +161,7 @@ while getopts "hudrfc:v" option; do
 		r) ACTION="Restart";;
 		f) FORCE=1;;
 		c) FILE="${OPTARG}";;
+		p) PRUNE=1;;
 		v) VERBOSE=1;;
 		:) echo -e "${RED}missing argument for $OPTARG \n\n"; Help; exit 1;;
 		?) echo -e "${RED}Invalid option \n\n" ; Help; exit 1;;
@@ -176,6 +179,7 @@ verbose "\
   - ACTION=${ACTION}
   - FORCE=${FORCE}
   - FILE=${FILE:-"<Empty>"}
+  - PRUNE=${PRUNE}
   - VERBOSE=${VERBOSE}
 "
 
@@ -197,7 +201,9 @@ DIRECTORIES_INV="$(echo "${DIRECTORIES}" | tac)"
 verbose "  - DIRECTORIES=$(Array_to_Str "${DIRECTORIES}")"
 verbose "  - DIRECTORIES_INV=$(Array_to_Str "${DIRECTORIES_INV}")\n"
 
-Run_for_all "${ACTION}" "${FORCE}"
+[[ "${PRUNE}" -eq 1 ]] && Prune
+
+[[ -n "${ACTION}" ]] && Run_for_all "${ACTION}" "${FORCE}"
 
 echo -e "${GREEN}####### END #######${NC}\n"
 
