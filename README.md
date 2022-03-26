@@ -51,5 +51,7 @@ generate conf file from running docker-compose :
 
 ## Todo (maybe)
 
-- installer
+- installer/updater
+- installer/updater for docker-compose
 - manage default conf file in `/etc/` and/or `/usr/local/etc`
+- add version number management

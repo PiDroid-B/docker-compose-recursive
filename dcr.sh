@@ -163,8 +163,8 @@ while getopts "hudrfc:vp" option; do
 		c) FILE="${OPTARG}";;
 		p) PRUNE=1;;
 		v) VERBOSE=1;;
-		:) echo -e "${RED}missing argument for $OPTARG \n\n"; Help; exit 1;;
-		?) echo -e "${RED}Invalid option \n\n" ; Help; exit 1;;
+		:) echo -e "${RED}missing argument for $OPTARG ${NC}\n\n"; Help; exit 1;;
+		?) echo -e "${RED}Invalid option ${NC}\n\n" ; Help; exit 1;;
 	esac
 done
 
