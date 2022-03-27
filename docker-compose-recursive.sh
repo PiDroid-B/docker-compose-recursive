@@ -1,8 +1,10 @@
 #!/bin/bash
-
+# https://github.com/PiDroid-B/docker-compose-recursive
+# MIT ©2022 PiDroid-B 
 ############################################################
 # Const                                                    #
 ############################################################
+VERSION="v0.2.0"
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 ORANGE='\033[0;33m'
@@ -27,6 +29,7 @@ UPDATE=0
 ############################################################
 Help(){
 echo -e "\
+docker-compose-recursive.sh - version ${VERSION}
 
 manage a tree of docker-compose :
 #default only dir with 'OK' file can be managed (or use the 'force' option)
@@ -108,7 +111,9 @@ DC_Update(){
 	fi
 	verbose "  - current version : ${dc_curr_version}"
 
-        dc_last_version="$( curl -s https://api.github.com/repos/docker/compose/releases/latest | grep "tag_name" | sed -r "s/^.*(v[0-9].[0-9].[0-9]).*/\1/" )"
+	github_content="$( curl -s https://api.github.com/repos/docker/compose/releases/latest )"
+	dc_last_version="$( echo "${github_content}" | grep "tag_name" | sed -r "s/^.*(v[0-9].[0-9].[0-9]).*/\1/" )"
+        #dc_last_version="$( curl -s https://api.github.com/repos/docker/compose/releases/latest | grep "tag_name" | sed -r "s/^.*(v[0-9].[0-9].[0-9]).*/\1/" )"
 	verbose "  - last version : ${dc_last_version}"
 
 	if [[ "${dc_curr_version}" == "${dc_last_version}" ]]; then
@@ -117,7 +122,7 @@ DC_Update(){
 		echo "docker-compose update avaiable : ${dc_curr_version} > ${dc_last_version}"
 
 		verbose "  - get information from github"
-		github_content="$( curl -s https://api.github.com/repos/docker/compose/releases/latest )"
+		#github_content="$( curl -s https://api.github.com/repos/docker/compose/releases/latest )"
 		filename="docker-compose-$(uname -s)-$(uname -m)"
 		files="$( echo "${github_content}" | grep -Ei "browser_download_url.*$filename" | cut -d"\"" -f4 )"
 
@@ -278,15 +283,21 @@ if [[ -n "${FILE}" && -r  "${FILE}" ]]; then
 	verbose "  - file ${FILE} found"
 	DIRECTORIES="$(cat "${FILE}")"
 else
-	verbose "  - check file ${0}.conf exists"
-	if [[ -r "${0}.conf" ]]; then
-		verbose "  - default file ${0}.conf found"
-		DIRECTORIES="$(cat "${0}.conf")"
+	verbose "  - check file directories.conf exists"
+	if [[ -r /usr/local/etc/docker-compose-recursive/directories.conf ]]; then
+		verbose "  - /usr/local/etc/docker-compose-recursive/directories.conf found"
+		DIRECTORIES="$(cat "/usr/local/etc/docker-compose-recursive/directories.conf" )"
+	elif [[ -r /etc/docker-compose-recursive/directories.conf ]]; then
+		verbose "  - /etc/docker-compose-recursive/directories.conf found"
+		DIRECTORIES="$(cat "/etc/docker-compose-recursive/directories.conf" )"
+	elif [[ -r /opt/docker-compose-recursive/directories.conf ]]; then
+		verbose "  - /opt/docker-compose-recursive/directories.conf found"
+		DIRECTORIES="$(cat "/opt/docker-compose-recursive/directories.conf" )"
 	else
-		verbose "  - no file, list auto-generated"
-		DIRECTORIES="$(echo */ | tr ' ' '\n')"
-	fi
-fi
+		verbose "  - no file, list auto-generated from current directory"
+		DIRECTORIES="$(echo */ | tr ' ' '\n')"		
+	fi		
+fi		
 DIRECTORIES_INV="$(echo "${DIRECTORIES}" | tac)"
 verbose "  - DIRECTORIES=$(Array_to_Str "${DIRECTORIES}")"
 verbose "  - DIRECTORIES_INV=$(Array_to_Str "${DIRECTORIES_INV}")\n"
