@@ -37,11 +37,23 @@ chmod 700 /opt/docker-compose-recursive/docker-compose-recursive.sh
 mkdir /opt/docker-compose-recursive
 cd /opt/docker-compose-recursive
 
-wget https://raw.githubusercontent.com/PiDroid-B/docker-compose-recursive/main/dcr.sh
+wget https://raw.githubusercontent.com/PiDroid-B/docker-compose-recursive/main/docker-compose-recursive.sh
 
 ln -s /opt/docker-compose-recursive/docker-compose-recursive.sh /usr/local/bin/dcr
 chmod 700 /opt/docker-compose-recursive/docker-compose-recursive.sh
 ```
+
+### wget (development version)
+```bash
+mkdir /opt/docker-compose-recursive
+cd /opt/docker-compose-recursive
+
+wget https://raw.githubusercontent.com/PiDroid-B/docker-compose-recursive/dev/docker-compose-recursive.sh
+
+ln -s /opt/docker-compose-recursive/docker-compose-recursive.sh /usr/local/bin/dcr
+chmod 700 /opt/docker-compose-recursive/docker-compose-recursive.sh
+```
+
 
 ## Help
 
