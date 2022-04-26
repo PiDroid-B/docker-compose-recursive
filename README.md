@@ -55,12 +55,13 @@ chmod 700 /opt/docker-compose-recursive/docker-compose-recursive.sh
 ```
 
 ## Autocompletion (Debian)
-
+```bash
 cd /tmp/
 wget https://raw.githubusercontent.com/PiDroid-B/docker-compose-recursive/main/bash-autocompletion
 
 sed -i "s/##MYAPP##/dcr/g" bash-autocompletion
 mv bash-autocompletion /etc/bash_completion.d/docker-compose-recursive
+```
 
 ## Help
 
