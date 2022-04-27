@@ -67,7 +67,7 @@ mv bash-autocompletion /etc/bash_completion.d/docker-compose-recursive
 
 `dcr -h`
 ```bash
-docker-compose-recursive.sh - version v0.3.0
+docker-compose-recursive.sh - version v0.3.1
 
 manage a tree of docker-compose :
         default only dir with 'OK' file can be managed (or use the 'force' option)
@@ -145,3 +145,4 @@ Directories are managed with the first configuration found below :
 ## Todo (maybe)
 
 - installer/updater
+- dcr -i bash_completion | sudo tee /etc/bash_completion.d/docker-compose-recursive

@@ -4,7 +4,7 @@
 ############################################################
 # Const                                                    #
 ############################################################
-VERSION="v0.3.0"
+VERSION="v0.3.1"
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 ORANGE='\033[0;33m'
@@ -234,6 +234,24 @@ Run_for_all(){
 	fi
 }
 
+# Run_for_one <action (Up|Down|Restart)> <docker>
+Run_for_one(){
+	local action=${1}
+	local docker=${2}
+
+	verbose "# Action ${action} (force=$FORCE) on ${docker}"
+
+	if [[ "Down Restart" == *"${action}"* ]]; then
+		verbose "\n  - Action ${action}[Down] (force=$FORCE) on ${docker}"
+		Run_for_item "Down" "${docker}"
+	fi
+
+	if [[ "Up Restart" == *"${action}"* ]]; then
+		verbose "\n  - Action ${action}[Up] (force=$FORCE) on ${docker}"
+		Run_for_item "Up" "${docker}"
+	fi
+}
+
 # Array_to_Str <array>
 Array_to_Str(){
 	local result=""
@@ -346,7 +364,7 @@ echo -e "${GREEN}####### START #######${NC}\n"
 [[ "${UPDATE}" -eq 1 ]] && DC_Update
 
 if [[ -n "${DOCKER}" ]]; then
-	[[ -n "${ACTION}" ]] && Run_for_item "${ACTION}" "${DOCKER}"
+	[[ -n "${ACTION}" ]] && Run_for_one "${ACTION}" "${DOCKER}"
 else
 	[[ -n "${ACTION}" ]] && Run_for_all "${ACTION}"
 fi
