@@ -1,24 +1,30 @@
 #!/bin/bash
 # https://github.com/PiDroid-B/docker-compose-recursive
-# MIT ©2022 PiDroid-B 
+# MIT ©2022 PiDroid-B
 
-_get_##MYAPP##()
+_get_@@MYAPP@@()
 {
   local current=${COMP_WORDS[COMP_CWORD]}
   COMPREPLY=()
 
-  # $1 is the name of the command 
+  # list of options
+  local cmd="hudrpifcv"
+
+  # $1 is the name of the command
   # $2 is the word being completed
   # $3 is the word preceding the word being completed
 
-  commands="-h -u -d -r -p -i -f -c -v"
-  folders="$(##MYAPP## -c)"
+  local result_cmd=""
+  for (( i=0; i<${#cmd}; i++ )); do
+    result_cmd+="-${cmd:$i:1} "
+  done
 
   if [[ "$1" == "$3" ]]; then
-      COMPREPLY=( $( compgen -o nosort -W "$commands $folders" -- $2 ) )
+      folders="$(@@MYAPP@@ -c)"
+      COMPREPLY=( $( compgen -o nosort -W "$result_cmd $folders" -- $2 ) )
   else
-      COMPREPLY=( $( compgen -o nosort -W "$commands" -- $2 ) )
+      COMPREPLY=( $( compgen -o nosort -W "$result_cmd" -- $2 ) )
   fi
 }
 
-complete -F _get_##MYAPP## ##MYAPP##
+complete -F _get_@@MYAPP@@ @@MYAPP@@

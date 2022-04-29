@@ -274,21 +274,28 @@ fi
 last_arg=""
 for option in "$@"; do
 	case $option in
-		-h) Help; exit 0;;
-		-u) ACTION="Up";;
-		-d) ACTION="Down";;
-		-r) ACTION="Restart";;
-		-i) UPDATE=1;;
-		-f) FORCE=1;;
-		-c) FILE="<GetList>";;
-		-p) PRUNE=1;;
-		-v) VERBOSE=1;;
+		-c) FILE="<GetList>";;	
+		-*)
+			for (( i=1; i<${#option}; i++ )); do
+				case ${option:$i:1} in
+					h) Help; exit 0;;
+					u) ACTION="Up";;
+					d) ACTION="Down";;
+					r) ACTION="Restart";;
+					i) UPDATE=1;;
+					f) FORCE=1;;
+					p) PRUNE=1;;
+					v) VERBOSE=1;;
+				esac
+			done
+			;;
 		*)
 		case $last_arg in
 		  	-c) FILE="$option";;
 			:) echo -e "${RED}missing argument for $OPTARG ${NC}\n\n"; Help; exit 1;;
 			?) echo -e "${RED}Invalid option ${NC}\n\n" ; Help; exit 1;;
 		esac
+		;;
 	esac
 	last_arg=$option
 done
