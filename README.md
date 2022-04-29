@@ -63,11 +63,20 @@ sed -i "s/##MYAPP##/dcr/g" bash-autocompletion
 mv bash-autocompletion /etc/bash_completion.d/docker-compose-recursive
 ```
 
+## Autocompletion (Debian - development version)
+```bash
+cd /tmp/
+wget https://raw.githubusercontent.com/PiDroid-B/docker-compose-recursive/dev/bash-autocompletion
+
+sed -i "s/##MYAPP##/dcr/g" bash-autocompletion
+mv bash-autocompletion /etc/bash_completion.d/docker-compose-recursive
+```
+
 ## Help
 
 `dcr -h`
 ```bash
-docker-compose-recursive.sh - version v0.3.1
+docker-compose-recursive.sh - version v0.3.2
 
 manage a tree of docker-compose :
         default only dir with 'OK' file can be managed (or use the 'force' option)

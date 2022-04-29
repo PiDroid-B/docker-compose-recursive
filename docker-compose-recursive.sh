@@ -4,7 +4,7 @@
 ############################################################
 # Const                                                    #
 ############################################################
-VERSION="v0.3.1"
+VERSION="v0.3.2"
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 ORANGE='\033[0;33m'
@@ -347,7 +347,9 @@ else
 		DIRECTORIES="$(cat "/opt/docker-compose-recursive/directories.conf" )"
 	else
 		verbose "  - no file, list auto-generated from current directory"
-		DIRECTORIES="$(echo */ | tr ' ' '\n')"
+		DIRECTORIES="$(echo */ | tr ' ' '\n' | sed 's-/$--' )"
+		# if contains no folder
+		[[ "${DIRECTORIES}" == "*" ]] && DIRECTORIES=""
 	fi
 fi
 DIRECTORIES_INV="$(echo "${DIRECTORIES}" | tac)"
