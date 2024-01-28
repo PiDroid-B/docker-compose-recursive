@@ -1,8 +1,10 @@
 #!/bin/bash
-
+# https://github.com/PiDroid-B/docker-compose-recursive
+# MIT ©2022 PiDroid-B 
 ############################################################
 # Const                                                    #
 ############################################################
+VERSION="v0.3.2"
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 ORANGE='\033[0;33m'
@@ -21,12 +23,14 @@ DIRECTORIES_INV=""
 VERBOSE=0
 PRUNE=0
 UPDATE=0
+DOCKER=""
 
 ############################################################
 # Help                                                     #
 ############################################################
 Help(){
 echo -e "\
+docker-compose-recursive.sh - version ${VERSION}
 
 manage a tree of docker-compose :
 #default only dir with 'OK' file can be managed (or use the 'force' option)
@@ -40,7 +44,10 @@ ${cmd}
 └── stack2
     └── docker-compose.yml
 
-${GREEN}Usage : ${cmd} [ACTION] [OPTION]${NC}
+${GREEN}Usage : ${cmd} [FOLDER] <ACTION> [OPTION]${NC}
+
+FOLDER
+# apply only to this folder (apply on all folder if missing)
 
 ACTION
 #-h## Help : show this help
@@ -49,9 +56,9 @@ ACTION
 #-r## Restart : Down and Up on each docker-compose
 #-p## Prune : remove unsed images, volumes and networks
 #-i## Install/Update : check if new versions of docker-compose and dcr exist (autoupdate for docker-compose if force)
+#-c [<file>]# Conf file : get list of folder from file instead of generate it, return list when file is missing
 OPTION
 #-f## Force : no check of 'OK' file (udr), auto install/upgrade (i)
-#-c <file># Conf file : get list of folder from file instead of generate it
 #-v## Verbose : show more information
 
 #${RED}/!\ use force only if you are sure what you do${NC}
@@ -61,6 +68,8 @@ some usefull commands :
 
 generate conf file from running docker-compose :
   docker compose ls | cut -f1 -d\" \" | sed \"1d\" > myfile.conf
+
+https://github.com/PiDroid-B/docker-compose-recursive MIT ©2022 PiDroid-B 
 
 " | tr "#" "\t"
 #" | column -t -s ";"
@@ -108,7 +117,9 @@ DC_Update(){
 	fi
 	verbose "  - current version : ${dc_curr_version}"
 
-        dc_last_version="$( curl -s https://api.github.com/repos/docker/compose/releases/latest | grep "tag_name" | sed -r "s/^.*(v[0-9].[0-9].[0-9]).*/\1/" )"
+	github_content="$( curl -s https://api.github.com/repos/docker/compose/releases/latest )"
+	dc_last_version="$( echo "${github_content}" | grep "tag_name" | sed -r "s/^.*(v[0-9].[0-9].[0-9]).*/\1/" )"
+        #dc_last_version="$( curl -s https://api.github.com/repos/docker/compose/releases/latest | grep "tag_name" | sed -r "s/^.*(v[0-9].[0-9].[0-9]).*/\1/" )"
 	verbose "  - last version : ${dc_last_version}"
 
 	if [[ "${dc_curr_version}" == "${dc_last_version}" ]]; then
@@ -117,7 +128,7 @@ DC_Update(){
 		echo "docker-compose update avaiable : ${dc_curr_version} > ${dc_last_version}"
 
 		verbose "  - get information from github"
-		github_content="$( curl -s https://api.github.com/repos/docker/compose/releases/latest )"
+		#github_content="$( curl -s https://api.github.com/repos/docker/compose/releases/latest )"
 		filename="docker-compose-$(uname -s)-$(uname -m)"
 		files="$( echo "${github_content}" | grep -Ei "browser_download_url.*$filename" | cut -d"\"" -f4 )"
 
@@ -153,6 +164,7 @@ DC_Update(){
 			echo
 			echo "##################################################################################################"
 			echo -e "${ORANGE}docker-compose new version available : ${NC}${dc_curr_version} > ${GREEN}${dc_last_version}${NC}"
+			echo -e "\t${GREEN}How to install/upgrade${NC}"
 			echo
 			for f in $files; do
 				echo "wget \"${f}\" -O \"/tmp/$(basename \""${f}"\")\""
@@ -222,6 +234,24 @@ Run_for_all(){
 	fi
 }
 
+# Run_for_one <action (Up|Down|Restart)> <docker>
+Run_for_one(){
+	local action=${1}
+	local docker=${2}
+
+	verbose "# Action ${action} (force=$FORCE) on ${docker}"
+
+	if [[ "Down Restart" == *"${action}"* ]]; then
+		verbose "\n  - Action ${action}[Down] (force=$FORCE) on ${docker}"
+		Run_for_item "Down" "${docker}"
+	fi
+
+	if [[ "Up Restart" == *"${action}"* ]]; then
+		verbose "\n  - Action ${action}[Up] (force=$FORCE) on ${docker}"
+		Run_for_item "Up" "${docker}"
+	fi
+}
+
 # Array_to_Str <array>
 Array_to_Str(){
 	local result=""
@@ -235,27 +265,60 @@ Array_to_Str(){
 # Main                                                     #
 ############################################################
 
-while getopts "hudrifc:vp" option; do
+# if first char of first arg is not '-' then it's the directory of a docker compose
+if [[ -n "${1}" && "${1:0:1}" != "-" ]]; then
+    DOCKER="${1}"
+	shift
+fi
+
+last_arg=""
+for option in "$@"; do
 	case $option in
-		h) Help; exit 0;;
-		u) ACTION="Up";;
-		d) ACTION="Down";;
-		r) ACTION="Restart";;
-		i) UPDATE=1;;
-		f) FORCE=1;;
-		c) FILE="${OPTARG}";;
-		p) PRUNE=1;;
-		v) VERBOSE=1;;
-		:) echo -e "${RED}missing argument for $OPTARG ${NC}\n\n"; Help; exit 1;;
-		?) echo -e "${RED}Invalid option ${NC}\n\n" ; Help; exit 1;;
+		-c) FILE="<GetList>";;	
+		-*)
+			for (( i=1; i<${#option}; i++ )); do
+				case ${option:$i:1} in
+					h) Help; exit 0;;
+					u) ACTION="Up";;
+					d) ACTION="Down";;
+					r) ACTION="Restart";;
+					i) UPDATE=1;;
+					f) FORCE=1;;
+					p) PRUNE=1;;
+					v) VERBOSE=1;;
+				esac
+			done
+			;;
+		*)
+		case $last_arg in
+		  	-c) FILE="$option";;
+			:) echo -e "${RED}missing argument for $OPTARG ${NC}\n\n"; Help; exit 1;;
+			?) echo -e "${RED}Invalid option ${NC}\n\n" ; Help; exit 1;;
+		esac
+		;;
 	esac
+	last_arg=$option
 done
+
+# while getopts "hudrifcvp" option; do
+# 	case $option in
+# 		h) Help; exit 0;;
+# 		u) ACTION="Up";;
+# 		d) ACTION="Down";;
+# 		r) ACTION="Restart";;
+# 		i) UPDATE=1;;
+# 		f) FORCE=1;;
+# 		c) FILE="${OPTARG}";;
+# 		p) PRUNE=1;;
+# 		v) VERBOSE=1;;
+# 		:) echo -e "${RED}missing argument for $OPTARG ${NC}\n\n"; Help; exit 1;;
+# 		?) echo -e "${RED}Invalid option ${NC}\n\n" ; Help; exit 1;;
+# 	esac
+# done
 
 verbose(){
 	[[ "${VERBOSE}" -eq 1 ]] && printf "${BLUE}${1}${NC}\n"
 }
-
-echo -e "${GREEN}####### START #######${NC}\n"
 
 verbose "\
 # Command and options
@@ -263,11 +326,12 @@ verbose "\
   - PRUNE=${PRUNE}
   - UPDATE=${UPDATE}
   - FORCE=${FORCE}
-  - FILE=${FILE:-"<Empty>"}
+  - DOCKER=${DOCKER}
+  - FILE=${FILE:-"<GetList>"}
   - VERBOSE=${VERBOSE}
 "
 
-if [[ -z "${ACTION}" && "${PRUNE}" -eq 0 && "${UPDATE}" -eq 0 ]]; then
+if [[ -z "${ACTION}" && "${PRUNE}" -eq 0 && "${UPDATE}" -eq 0 && "${FILE}" != "<GetList>" ]]; then
 	echo -e "${RED}missing option ${NC}\n\n"
 	Help
 	exit 1
@@ -278,23 +342,41 @@ if [[ -n "${FILE}" && -r  "${FILE}" ]]; then
 	verbose "  - file ${FILE} found"
 	DIRECTORIES="$(cat "${FILE}")"
 else
-	verbose "  - check file ${0}.conf exists"
-	if [[ -r "${0}.conf" ]]; then
-		verbose "  - default file ${0}.conf found"
-		DIRECTORIES="$(cat "${0}.conf")"
+	verbose "  - check file directories.conf exists"
+	if [[ -r /usr/local/etc/docker-compose-recursive/directories.conf ]]; then
+		verbose "  - /usr/local/etc/docker-compose-recursive/directories.conf found"
+		DIRECTORIES="$(cat "/usr/local/etc/docker-compose-recursive/directories.conf" )"
+	elif [[ -r /etc/docker-compose-recursive/directories.conf ]]; then
+		verbose "  - /etc/docker-compose-recursive/directories.conf found"
+		DIRECTORIES="$(cat "/etc/docker-compose-recursive/directories.conf" )"
+	elif [[ -r /opt/docker-compose-recursive/directories.conf ]]; then
+		verbose "  - /opt/docker-compose-recursive/directories.conf found"
+		DIRECTORIES="$(cat "/opt/docker-compose-recursive/directories.conf" )"
 	else
-		verbose "  - no file, list auto-generated"
-		DIRECTORIES="$(echo */ | tr ' ' '\n')"
+		verbose "  - no file, list auto-generated from current directory"
+		DIRECTORIES="$(echo */ | tr ' ' '\n' | sed 's-/$--' )"
+		# if contains no folder
+		[[ "${DIRECTORIES}" == "*" ]] && DIRECTORIES=""
 	fi
 fi
 DIRECTORIES_INV="$(echo "${DIRECTORIES}" | tac)"
 verbose "  - DIRECTORIES=$(Array_to_Str "${DIRECTORIES}")"
 verbose "  - DIRECTORIES_INV=$(Array_to_Str "${DIRECTORIES_INV}")\n"
+if [[ "${FILE}" == "<GetList>" ]]; then
+	echo "$DIRECTORIES"
+	exit 0
+fi
+
+echo -e "${GREEN}####### START #######${NC}\n"
 
 [[ "${PRUNE}" -eq 1 ]] && Prune
 [[ "${UPDATE}" -eq 1 ]] && DC_Update
 
-[[ -n "${ACTION}" ]] && Run_for_all "${ACTION}"
+if [[ -n "${DOCKER}" ]]; then
+	[[ -n "${ACTION}" ]] && Run_for_one "${ACTION}" "${DOCKER}"
+else
+	[[ -n "${ACTION}" ]] && Run_for_all "${ACTION}"
+fi
 
 echo -e "${GREEN}####### END #######${NC}\n"
 
