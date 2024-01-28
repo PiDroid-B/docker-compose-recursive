@@ -23,6 +23,7 @@ DIRECTORIES_INV=""
 VERBOSE=0
 PRUNE=0
 UPDATE=0
+LIST=0
 DOCKER=""
 
 ############################################################
@@ -337,7 +338,7 @@ verbose "\
   - VERBOSE=${VERBOSE}
 "
 
-if [[ -z "${ACTION}" && "${PRUNE}" -eq 0 && "${UPDATE}" -eq 0 && "${FILE}" != "<GetList>" ]]; then
+if [[ -z "${ACTION}" && "${PRUNE}" -eq 0 && "${UPDATE}" -eq 0 && "${FILE}" != "<GetList>" && "${LIST}" -eq 0 ]]; then
 	echo -e "${RED}missing option ${NC}\n\n"
 	Help
 	exit 1
