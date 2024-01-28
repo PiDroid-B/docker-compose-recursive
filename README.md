@@ -102,6 +102,7 @@ ACTION
         -r               Restart : Run a Down and Up on each docker-compose
         -p               Prune : Remove unused images, volumes and networks
         -i               Install/Update : Check if a new version of docker-compose and dcr exist (autoupdate for docker-compose if force)
+        -l               List : watch on docker ps
 OPTION
         -f               Force : Ignore 'OK' files (udr), auto install/upgrade (-i)
         -c <file>        Conf file : Get the list of folders from file instead of generate it

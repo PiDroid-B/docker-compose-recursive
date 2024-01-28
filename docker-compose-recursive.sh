@@ -101,6 +101,10 @@ Prune(){
 	docker network prune -f
 }
 
+List(){
+        watch -n 1 -d 'docker ps --format "table {{.Names}}\t{{.ID}}\t{{.Image}}\t{{.RunningFor}}\t{{.Status}}\t{{.State}}" -a | ( read -r header ; printf "%s\n" "$header" ; sort "$@" )'
+}
+
 DC_Update(){
 	local dc_curr_version
 	local dc_last_version
@@ -282,6 +286,7 @@ for option in "$@"; do
 					u) ACTION="Up";;
 					d) ACTION="Down";;
 					r) ACTION="Restart";;
+                                        l) LIST=1 ;;
 					i) UPDATE=1;;
 					f) FORCE=1;;
 					p) PRUNE=1;;
@@ -323,6 +328,7 @@ verbose(){
 verbose "\
 # Command and options
   - ACTION=${ACTION}
+  - LIST=${LIST}
   - PRUNE=${PRUNE}
   - UPDATE=${UPDATE}
   - FORCE=${FORCE}
@@ -379,5 +385,6 @@ else
 fi
 
 echo -e "${GREEN}####### END #######${NC}\n"
+[[ "${LIST}" -eq 1 ]] && List
 
 
